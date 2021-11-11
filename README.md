@@ -1,2 +1,2 @@
-# Graph_Transformer
-Graph_Transformer
+# Graph Transformer
+Graph Transformer
