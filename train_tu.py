@@ -1,4 +1,5 @@
 import argparse
+import networkx
 from sklearn.utils import shuffle
 import torch
 import dgl
@@ -9,8 +10,11 @@ from tqdm import tqdm
 import os
 import pandas as pd
 from torchviz import make_dot
+import torch_geometric.utils
 from src.models.GraphTransformer import *
 import torch_geometric
+from torch_geometric.utils import to_networkx
+import torch_geometric.transforms
 from torch_geometric.datasets import TUDataset
 from sklearn.model_selection import train_test_split
 from ogb.graphproppred import DglGraphPropPredDataset, collate_dgl
@@ -27,6 +31,7 @@ def evaluate(model,loader,loss,device):
     y_pred = []
     y_true = []
     for x in loader:
+        x.edge_index =  torch_geometric.utils.to_undirected(torch_geometric.utils.add_self_loops(x.edge_index)[0])
         x = x.to(device)
         label = x.y
         
@@ -56,7 +61,7 @@ def main(args):
     dataset = TUDataset(name=args.dataset,root="dataset")
     print("Average number of nodes: ",sum([graph.num_nodes for graph in dataset])/len(dataset))
     print("Data Imbalance: ",(sum(dataset.data.y)*1./len(dataset)).item())
-    
+
     train_idx, test_idx = train_test_split(torch.arange(len(dataset)),test_size=0.25)
     
     train_loader = DataLoader(dataset[train_idx], batch_size=args.batch_size,shuffle=True)
@@ -77,6 +82,7 @@ def main(args):
             num_items = 0
             for x in tepoch:
                 tepoch.set_description(f"Epoch {epoch}")
+                x.edge_index =  torch_geometric.utils.to_undirected(torch_geometric.utils.add_self_loops(x.edge_index)[0])
                 x = x.to(device)
                 label = x.y
                 
@@ -125,7 +131,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', type=int, default=1, help="Options are: 0, 1")
-    parser.add_argument('--dataset', type=str, default='DD', help="Options are: DD,FIRSTMM_DB,REDDIT_BINARY")
+    parser.add_argument('--dataset', type=str, default='DD', help="Options are: DD,FIRSTMM_DB,REDDIT-BINARY")
     parser.add_argument('--optimizer', type=str, default='adam', help="Options are: adam, sgd")
     parser.add_argument('--loss', type=str, default='crossentropyloss', help="Options are: crossentropyloss")
     parser.add_argument('--lr', type=float, default=0.001)
