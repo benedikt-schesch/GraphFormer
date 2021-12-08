@@ -24,18 +24,18 @@ from torchsampler import ImbalancedDatasetSampler
 from torch_geometric.loader import DataLoader
 
 
-def evaluate(model,loader,loss,device):
+def evaluate(model,dataset2,loader,loss,device):
     num_correct = 0
     total_loss = 0
     num_items = 0
     y_pred = []
     y_true = []
-    for x in loader:
-        x.edge_index =  torch_geometric.utils.to_undirected(torch_geometric.utils.add_self_loops(x.edge_index)[0])
+    for idx in loader:
+        x, adj = dataset2[idx]
         x = x.to(device)
         label = x.y
         
-        y = model(x)
+        y = model(x, adj)
 
         predictions = y.argmax(dim=1, keepdim=True).squeeze()
         num_correct += (predictions == label.view(-1)).sum().item()
@@ -61,17 +61,23 @@ def main(args):
     dataset = TUDataset(name=args.dataset,root="dataset")
     print("Average number of nodes: ",sum([graph.num_nodes for graph in dataset])/len(dataset))
     print("Data Imbalance: ",(sum(dataset.data.y)*1./len(dataset)).item())
-
-    train_idx, test_idx = train_test_split(torch.arange(len(dataset)),test_size=0.25)
     
-    train_loader = DataLoader(dataset[train_idx], batch_size=args.batch_size,shuffle=True)
-    test_loader = DataLoader(dataset[test_idx],batch_size=args.batch_size)
+    def f(x):
+        x.edge_index = torch_geometric.utils.to_undirected(torch_geometric.utils.add_self_loops(x.edge_index)[0])
+        edges = x.edge_index.transpose(1,0).tolist()
+        adj = {k: [v[1] for v in g] for k, g in groupby(sorted(edges), lambda e: e[0])}
+        return x, adj
+    
+    train_idx, test_idx = train_test_split(torch.arange(len(dataset)),test_size=0.25)
+    dataset2 = list(map(f,dataset))
+    train_loader = DataLoader(train_idx, batch_size=args.batch_size,shuffle=True)
+    test_loader = DataLoader(test_idx,batch_size=args.batch_size)
     
     model = GraphTransformer(args.embedding_dim,num_features=dataset.num_features,num_clases=dataset.num_classes,device=device)
     model.to(device)
     optimizer = get_optimizer(args,model)
     loss_func = get_loss(args)
-    scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer,step_size=10)
+    scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer,step_size=20)
 
     train_infos = pd.DataFrame(columns=['Epoch','Training accuracy','Testing Accuracy','Training loss','Testing loss'])
 
@@ -80,14 +86,14 @@ def main(args):
             total_correct = 0
             total_loss = 0
             num_items = 0
-            for x in tepoch:
+            for idx in tepoch:
                 tepoch.set_description(f"Epoch {epoch}")
-                x.edge_index =  torch_geometric.utils.to_undirected(torch_geometric.utils.add_self_loops(x.edge_index)[0])
+                x, adj = dataset2[idx]
                 x = x.to(device)
                 label = x.y
                 
                 optimizer.zero_grad()
-                y = model(x)
+                y = model(x,adj)
                 #make_dot(y[0], params=dict(list(model.named_parameters()))).save("rnn_torchviz")
 
                 num_items += len(y)
@@ -104,7 +110,7 @@ def main(args):
             scheduler1.step()
             train_accuracy = total_correct/num_items
             train_loss = total_loss/num_items
-            test_accuracy, test_loss = evaluate(model,test_loader,loss_func,device)
+            test_accuracy, test_loss = evaluate(model,dataset2,test_loader,loss_func,device)
 
             train_infos = train_infos.append({"Epoch":epoch,
                             "Training accuracy":train_accuracy,
@@ -124,7 +130,7 @@ def main(args):
             ax.get_figure().savefig(out_folder+"Loss.png")
 
             train_infos.to_csv(out_folder+"train_infos.csv")
-    test_accuracy, test_loss = evaluate(model,test_loader,loss_func,device)
+    test_accuracy, test_loss = evaluate(model,dataset2,test_loader,loss_func,device)
     return train_accuracy, test_accuracy
 
 
@@ -134,9 +140,9 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='DD', help="Options are: DD,FIRSTMM_DB,REDDIT-BINARY")
     parser.add_argument('--optimizer', type=str, default='adam', help="Options are: adam, sgd")
     parser.add_argument('--loss', type=str, default='crossentropyloss', help="Options are: crossentropyloss")
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--weight_decay', type=float, default=0)
-    parser.add_argument('--epochs', type=int, default=40)
+    parser.add_argument('--lr', type=float, default=0.0003)
+    parser.add_argument('--weight_decay', type=float, default=1e-7)
+    parser.add_argument('--epochs', type=int, default=70)
     parser.add_argument('--embedding_dim', type=int, default=64)
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--output_folder', type=str, default="figs/")
