@@ -148,7 +148,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', type=int, default=1, help="Options are: 0, 1")
-    parser.add_argument('--dataset', type=str, default='REDDIT-BINARY', help="Options are: DD,FIRSTMM_DB,REDDIT-BINARY")
+    parser.add_argument('--dataset', type=str, default='FIRSTMM_DB', help="Options are: DD,FIRSTMM_DB,REDDIT-BINARY")
     parser.add_argument('--optimizer', type=str, default='adam', help="Options are: adam, sgd")
     parser.add_argument('--loss', type=str, default='crossentropyloss', help="Options are: crossentropyloss")
     parser.add_argument('--lr', type=float, default=0.0003)
