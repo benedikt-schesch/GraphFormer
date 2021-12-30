@@ -137,7 +137,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', type=int, default=1, help="Options are: 0, 1")
-    parser.add_argument('--model', type=str, default='ConvAggrBaseline', help="Options are: GraphFormer,GraphFormerNoConvs,RandomGraphFormer,ConvAggrBaseline,TransformerBaseline")
+    parser.add_argument('--model', type=str, default='GraphFormer', help="Options are: GraphFormer,GraphFormerNoConvs,RandomGraphFormer,ConvAggrBaseline,TransformerBaseline")
     parser.add_argument('--dataset', type=str, default='DD', help="Options are: DD,FIRSTMM_DB,REDDIT-BINARY")
     parser.add_argument('--optimizer', type=str, default='adam', help="Options are: adam, sgd")
     parser.add_argument('--loss', type=str, default='crossentropyloss', help="Options are: crossentropyloss")
