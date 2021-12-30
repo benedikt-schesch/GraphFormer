@@ -1,26 +1,18 @@
 import argparse
-import networkx
-from sklearn.utils import shuffle
 import torch
-import dgl
 import time
 import torch_geometric
 from utils import *
 from tqdm import tqdm
 import os
+from sklearn.model_selection import StratifiedKFold
 import pandas as pd
-from torchviz import make_dot
 import torch_geometric.utils
-from src.models.GraphTransformer import *
+from src.models.models import *
 import torch_geometric
-from torch_geometric.utils import to_networkx
 import torch_geometric.transforms
 from torch_geometric.datasets import TUDataset
-from sklearn.model_selection import train_test_split
-from ogb.graphproppred import DglGraphPropPredDataset, collate_dgl
 import matplotlib.pyplot as plt
-from ogb.graphproppred import Evaluator
-from torchsampler import ImbalancedDatasetSampler
 from torch.utils.data import DataLoader
 
 
@@ -70,15 +62,14 @@ def main(args):
         return x, adj
     
     dataset2 = list(map(f,dataset))
-    skf = StratifiedKFold(n_splits=10, shuffle = True, random_state = 42)
+    skf = StratifiedKFold(n_splits=args.num_splits, shuffle = True, random_state = 42)
     test_accs = []
     for train_idx,test_idx in skf.split(range(len(dataset)),[i.y.item() for i in dataset]):
         test_accs.append([])
-        #print(split)
         train_loader = DataLoader(list(train_idx), batch_size=args.batch_size,shuffle=True)
         test_loader = DataLoader(list(test_idx),batch_size=args.batch_size)
     
-        model = RandomGraphTransformer(args.embedding_dim,num_features=dataset.num_features,num_clases=dataset.num_classes,device=device)
+        model = get_model(args,embedding_dim=args.embedding_dim,num_clases=dataset.num_classes,device=device)
         model.to(device)
         optimizer = get_optimizer(args,model)
         loss_func = get_loss(args)
@@ -148,12 +139,14 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', type=int, default=1, help="Options are: 0, 1")
-    parser.add_argument('--dataset', type=str, default='FIRSTMM_DB', help="Options are: DD,FIRSTMM_DB,REDDIT-BINARY")
+    parser.add_argument('--model', type=str, default='GraphFormer', help="Options are: GraphFormer,GraphFormerNoConvs,RandomGraphFormer,ConvAggrBaseline,TransformerBaseline")
+    parser.add_argument('--dataset', type=str, default='DD', help="Options are: DD,FIRSTMM_DB,REDDIT-BINARY")
     parser.add_argument('--optimizer', type=str, default='adam', help="Options are: adam, sgd")
     parser.add_argument('--loss', type=str, default='crossentropyloss', help="Options are: crossentropyloss")
     parser.add_argument('--lr', type=float, default=0.0003)
-    parser.add_argument('--weight_decay', type=float, default=1e-7)
+    parser.add_argument('--weight_decay', type=float, default=0)
     parser.add_argument('--epochs', type=int, default=40)
+    parser.add_argument('--num_splits', type=int, default=10)
     parser.add_argument('--embedding_dim', type=int, default=64)
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--output_folder', type=str, default="figs/")

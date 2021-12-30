@@ -1,6 +1,5 @@
-from tqdm import std
-from src.data.data_generators import *
 import torch_geometric
+from src.models.models import *
 
 def get_optimizer(args,model):
     optimizer = None
@@ -37,6 +36,19 @@ def get_dataset(args):
     print("Dataset used: ",dataset.__class__.__name__)
     print(f'Number of nodes: {dataset.num_nodes}')
     return dataset
+
+def get_model(args,embedding_dim,num_clases,device):
+    if args.model == "GraphFormer":
+        return GraphFormer(embedding_dim,num_clases,device,convs=True)
+    if args.model == "GraphFormerNoConvs":
+        return GraphFormer(embedding_dim,num_clases,device,convs=False)
+    if args.model == "RandomGraphFormer":
+        return RandomGraphFormer(embedding_dim,num_clases,device)
+    if args.model == "ConvAggrBaseline":
+        return ConvAggregationBaseline(embedding_dim,num_clases,device)
+    if args.model == "TransformerBaseline":
+        return TransformerBaseline(embedding_dim,num_clases,device)
+    
 
 def PyGeomToDGL(data,device):
     graphs = [dgl.from_networkx(torch_geometric.utils.to_networkx(i),device=device) for i in data] #DGL conversion
