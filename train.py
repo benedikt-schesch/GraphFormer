@@ -14,6 +14,7 @@ import torch_geometric.transforms
 from torch_geometric.datasets import TUDataset
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
+from itertools import groupby
 
 
 def evaluate(model,dataset2,loader,loss,device):
@@ -90,14 +91,12 @@ def main(args):
                     
                     optimizer.zero_grad()
                     y = model(x,adj)
-                    #make_dot(y[0], params=dict(list(model.named_parameters()))).save("rnn_torchviz")
 
                     num_items += len(y)
                     predictions = y.argmax(dim=1, keepdim=True).squeeze()
                     loss = loss_func(y, label.view(-1))
                     loss.backward()
                     correct = (predictions == label.view(-1)).sum().item()
-                    #torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
 
                     optimizer.step()
                     total_correct += correct
@@ -128,7 +127,6 @@ def main(args):
                 plt.close()
 
                 train_infos.to_csv(out_folder+"train_infos.csv")
-        #test_accuracy, test_loss = evaluate(model,dataset2,test_loader,loss_func,device)
     test_accs = np.array(test_accs)
     max_arg = np.argmax(np.mean(test_accs,0))
     print("Max Acuracy: ",np.mean(test_accs,0)[max_arg])
@@ -139,7 +137,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--verbose', type=int, default=1, help="Options are: 0, 1")
-    parser.add_argument('--model', type=str, default='GraphFormer', help="Options are: GraphFormer,GraphFormerNoConvs,RandomGraphFormer,ConvAggrBaseline,TransformerBaseline")
+    parser.add_argument('--model', type=str, default='ConvAggrBaseline', help="Options are: GraphFormer,GraphFormerNoConvs,RandomGraphFormer,ConvAggrBaseline,TransformerBaseline")
     parser.add_argument('--dataset', type=str, default='DD', help="Options are: DD,FIRSTMM_DB,REDDIT-BINARY")
     parser.add_argument('--optimizer', type=str, default='adam', help="Options are: adam, sgd")
     parser.add_argument('--loss', type=str, default='crossentropyloss', help="Options are: crossentropyloss")

@@ -1,4 +1,3 @@
-import torch_geometric
 from src.models.models import *
 
 def get_optimizer(args,model):
@@ -48,12 +47,3 @@ def get_model(args,embedding_dim,num_clases,device):
         return ConvAggregationBaseline(embedding_dim,num_clases,device)
     if args.model == "TransformerBaseline":
         return TransformerBaseline(embedding_dim,num_clases,device)
-    
-
-def PyGeomToDGL(data,device):
-    graphs = [dgl.from_networkx(torch_geometric.utils.to_networkx(i),device=device) for i in data] #DGL conversion
-    for i in range(len(data)):
-        graphs[i].ndata["x"] = data[i].x.to(device)
-    labels = [i.y for i in data]
-    return graphs, torch.tensor(labels).type(torch.LongTensor)
-
