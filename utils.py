@@ -16,34 +16,14 @@ def get_loss(args):
     print("Loss: ",loss)
     return loss
 
-def get_dataset(args):
-    dataset = None
-    if args.dataset == "fourcycles":
-        dataset = FourCycles()
-    elif args.dataset == "cycles":
-        dataset = Cycles()
-    elif args.dataset == "mutag":
-        dataset = TUDatasetMutagGen()
-    elif args.dataset == "protein":
-        dataset = TUDatasetProteinGen()
-    elif args.dataset == "node_detection":
-        dataset = MarkedNode()
-    elif args.dataset == "triangles":
-        dataset = Triangles()
-    else:
-        raise Exception()
-    print("Dataset used: ",dataset.__class__.__name__)
-    print(f'Number of nodes: {dataset.num_nodes}')
-    return dataset
-
-def get_model(args,embedding_dim,num_clases,device):
+def get_model(args,embedding_dim,num_clases):
     if args.model == "GraphFormer":
-        return GraphFormer(embedding_dim,num_clases,device,convs=True)
+        return GraphFormer(embedding_dim,num_clases,convs=True)
     if args.model == "GraphFormerNoConvs":
-        return GraphFormer(embedding_dim,num_clases,device,convs=False)
+        return GraphFormer(embedding_dim,num_clases,convs=False)
     if args.model == "RandomGraphFormer":
-        return RandomGraphFormer(embedding_dim,num_clases,device)
+        return RandomGraphFormer(embedding_dim,num_clases)
     if args.model == "ConvAggrBaseline":
-        return ConvAggregationBaseline(embedding_dim,num_clases,device)
+        return ConvAggregationBaseline(embedding_dim,num_clases)
     if args.model == "TransformerBaseline":
-        return TransformerBaseline(embedding_dim,num_clases,device)
+        return TransformerBaseline(embedding_dim,num_clases)

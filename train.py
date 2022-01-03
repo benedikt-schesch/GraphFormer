@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from itertools import groupby
 
 
-def evaluate(model,dataset2,loader,loss,device):
+def evaluate(model,dataset2,loader,loss):
     model.eval()
     num_correct = 0
     total_loss = 0
@@ -26,7 +26,6 @@ def evaluate(model,dataset2,loader,loss,device):
     y_true = []
     for idx in loader:
         x, adj = dataset2[idx]
-        x = x.to(device)
         label = x.y
         
         y = model(x, adj)
@@ -43,40 +42,43 @@ def evaluate(model,dataset2,loader,loss,device):
     return ((y_pred == y_true).sum()/len(y_pred)).item(), total_loss/num_items
 
 def main(args):
+    #Prepare output folder
     print(args, flush=True)
     out_folder = args.output_folder + args.experiment_id +"/"
     os.mkdir(out_folder)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Device: ",device)
-    if torch.cuda.is_available():
-        torch.set_default_tensor_type('torch.cuda.FloatTensor')
-
+    #Load dataset and print stats about it
     dataset = TUDataset(name=args.dataset,root="dataset")
     print("Average number of nodes: ",sum([graph.num_nodes for graph in dataset])/len(dataset))
     print("Data Imbalance: ",(sum(dataset.data.y)*1./len(dataset)).item())
     
+    #This function convertes adds self-loops and makes the graph undirected, it also generates the adjacency list
     def f(x):
         x.edge_index = torch_geometric.utils.to_undirected(torch_geometric.utils.add_self_loops(x.edge_index)[0])
         edges = x.edge_index.transpose(1,0).tolist()
         adj = {k: [v[1] for v in g] for k, g in groupby(sorted(edges), lambda e: e[0])}
         return x, adj
     
+    #Generate dataset and k-folds
     dataset2 = list(map(f,dataset))
     skf = StratifiedKFold(n_splits=args.num_splits, shuffle = True, random_state = 42)
     test_accs = []
+
+    #Iterate over all K-folds
     for train_idx,test_idx in skf.split(range(len(dataset)),[i.y.item() for i in dataset]):
         test_accs.append([])
         train_loader = DataLoader(list(train_idx), batch_size=args.batch_size,shuffle=True)
         test_loader = DataLoader(list(test_idx),batch_size=args.batch_size)
-    
-        model = get_model(args,embedding_dim=args.embedding_dim,num_clases=dataset.num_classes,device=device)
-        model.to(device)
+
+        #Model, optimizer, loss, scheduler
+        model = get_model(args,embedding_dim=args.embedding_dim,num_clases=dataset.num_classes)
         optimizer = get_optimizer(args,model)
         loss_func = get_loss(args)
         scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer,step_size=20)
 
         train_infos = pd.DataFrame(columns=['Epoch','Training accuracy','Testing Accuracy','Training loss','Testing loss'])
+        
+        #Train loop
         for epoch in range(args.epochs):
             with tqdm(train_loader, unit="batch",disable=(args.verbose==0)) as tepoch:
                 model.train()
@@ -86,7 +88,6 @@ def main(args):
                 for idx in tepoch:
                     tepoch.set_description(f"Epoch {epoch}")
                     x, adj = dataset2[idx]
-                    x = x.to(device)
                     label = x.y
                     
                     optimizer.zero_grad()
@@ -103,9 +104,11 @@ def main(args):
                     total_loss += loss.item()*args.batch_size
                     tepoch.set_postfix(loss=total_loss/num_items, accuracy=total_correct/num_items)
                 scheduler1.step()
+
+                #Keep track of model performance
                 train_accuracy = total_correct/num_items
                 train_loss = total_loss/num_items
-                test_accuracy, test_loss = evaluate(model,dataset2,test_loader,loss_func,device)
+                test_accuracy, test_loss = evaluate(model,dataset2,test_loader,loss_func)
                 test_accs[-1].append(test_accuracy)
                 train_infos = train_infos.append({"Epoch":epoch,
                                 "Training accuracy":train_accuracy,
@@ -129,6 +132,8 @@ def main(args):
                 train_infos.to_csv(out_folder+"train_infos.csv")
     test_accs = np.array(test_accs)
     max_arg = np.argmax(np.mean(test_accs,0))
+
+    #Print and return final results
     print("Max Acuracy: ",np.mean(test_accs,0)[max_arg])
     print("Std: ",np.std(test_accs[:,max_arg]))
     return train_accuracy, test_accuracy

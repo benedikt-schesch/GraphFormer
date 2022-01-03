@@ -10,3 +10,11 @@ To train the model:
 python3 train.py
 
 The flags of train.py control the dataset, model and parameters.
+
+The structure of the code is as follows:
+
+    src/
+      |- models.py File which contains all of the models
+      |- modules.py File which contains modules for the Transformer code
+    train.py Main script that train and evaluates the models
+    utils.py utility functions for the train.py file

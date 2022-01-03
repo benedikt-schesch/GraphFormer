@@ -9,9 +9,8 @@ from torch_geometric.nn import GATConv
 
 
 class GraphFormer(nn.Module):
-    def __init__(self,embedding_dim,num_clases,device,convs = True):
+    def __init__(self,embedding_dim,num_clases,convs = True):
         super().__init__()
-        self.device = device
         self.target_cluster_size = 32
         self.embedding_dim = embedding_dim
         self.embeddings_layer = nn.LazyLinear(embedding_dim)
@@ -24,6 +23,7 @@ class GraphFormer(nn.Module):
         self.to_class = nn.LazyLinear(num_clases)
         self.convs = convs
     
+    #This is the neighbour splitting function
     def generate_clusters(self, num_nodes, adj):
         clusters = np.full(num_nodes,0)
         unvisited_nodes = set({i for i in range(num_nodes)})
@@ -89,9 +89,8 @@ class GraphFormer(nn.Module):
 
 
 class ConvAggregationBaseline(nn.Module):
-    def __init__(self,embedding_dim,num_clases,device):
+    def __init__(self,embedding_dim,num_clases):
         super().__init__()
-        self.device = device
         self.input_layer = nn.LazyLinear(embedding_dim)
         self.node_embedding_layer = nn.Embedding(1,embedding_dim)
         self.conv1 = GATConv(embedding_dim,embedding_dim)
@@ -117,10 +116,9 @@ class ConvAggregationBaseline(nn.Module):
 
 
 class TransformerBaseline(nn.Module):
-    def __init__(self,embedding_dim,num_clases,device):
+    def __init__(self,embedding_dim,num_clases):
         super().__init__()
         self.to_class = nn.LazyLinear(num_clases)
-        self.device = device
         self.target_cluster_size = 32
         self.transformer = Transformer(depth=8,heads=8,dim=embedding_dim)
         self.class_token = nn.Embedding(1, embedding_dim)
@@ -128,7 +126,7 @@ class TransformerBaseline(nn.Module):
         self.node_embedding_layer = nn.Embedding(1,embedding_dim)
 
     def forward(self, g ,adj):
-        if g.x == None: #In case we don't have any Node features we learn an embedding
+        if g.x == None: #In case we don't have any node features we learn an embedding
             x = self.node_embedding_layer(torch.tensor([0]))[0].repeat(g.num_nodes,1)
         else:
             x = g.x
@@ -140,9 +138,8 @@ class TransformerBaseline(nn.Module):
 
 
 class RandomGraphFormer(nn.Module):
-    def __init__(self,embedding_dim,num_clases,device):
+    def __init__(self,embedding_dim,num_clases):
         super().__init__()
-        self.device = device
         self.embedding_dim = embedding_dim
         self.target_cluster_size = 32
         self.embeddings_layer = nn.LazyLinear(embedding_dim)
@@ -152,6 +149,7 @@ class RandomGraphFormer(nn.Module):
         self.node_embedding_layer = nn.Embedding(1,embedding_dim)
         self.to_class = nn.LazyLinear(num_clases)
     
+    #This is the random splitting function
     def generate_clusters(self, num_nodes, adj):
         clusters = np.full(num_nodes,0)
         unvisited_nodes = set({i for i in range(num_nodes)})
