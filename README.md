@@ -8,3 +8,5 @@ pip install -r requirements.txt
 
 To train the model:
 python3 train.py
+
+The flags of train.py control the dataset, model and parameters.
